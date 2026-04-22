@@ -1,30 +1,30 @@
-import openai
+from google import genai
 import streamlit as st
 
-##### OpenAI API 요청 함수 #####
-def llm_request(prompt,apikey):
-    client = openai.OpenAI(api_key = apikey)
-    response = client.chat.completions.create(
-    model="gpt-3.5-turbo",
-    messages=[{"role": "user", "content": prompt}])
-    gptResponse = response.choices[0].message.content
-    return gptResponse
+##### Gemini API 요청 함수 #####
+def llm_request(prompt, apikey):
+    client = genai.Client(api_key=apikey)
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt,
+    )
+    return response.text
 
 ##### Streamlit UI #####
 def main():
     st.set_page_config(page_title="요약 프로그램")
-    if "OPENAI_API_KEY" not in st.session_state:
-        st.session_state["OPENAI_API_KEY"] = ""
+    if "GEMINI_API_KEY" not in st.session_state:
+        st.session_state["GEMINI_API_KEY"] = ""
 
     with st.sidebar:
-        api_key = st.text_input(label='OPENAI API KEY', placeholder='OPENAI API KEY를 입력하세요.', value='',type='password')    
+        api_key = st.text_input(label='GEMINI API KEY', placeholder='GEMINI API KEY를 입력하세요.', value='', type='password')
         if api_key:
-            st.session_state["OPENAI_API_KEY"] = api_key
+            st.session_state["GEMINI_API_KEY"] = api_key
         st.markdown('---')
 
     st.header("📃 문서 요약 서비스")
     st.markdown('---')
-    
+
     document = st.text_area("요약 할 내용을 입력하세요")
     if st.button("요약하기"):
         prompt = f'''
@@ -37,8 +37,8 @@ def main():
             [Document]
             {document}
             '''
-               
-        st.info(llm_request(prompt,st.session_state["OPENAI_API_KEY"]))
 
-if __name__=="__main__":
+        st.info(llm_request(prompt, st.session_state["GEMINI_API_KEY"]))
+
+if __name__ == "__main__":
     main()
