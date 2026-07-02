@@ -2,14 +2,17 @@
 
 이 디렉토리는 OpenClaw 프로젝트의 주요 기능별 세부 아키텍처를 문서화합니다.
 
+> **분석 기준 버전: OpenClaw 2026.6.11** (2026-07-02 갱신, HEAD `574604e`). 직전 분석은 2026.4.16 기준이었으며, 변경 이력은 [00-업데이트노트-2026.6.11.md](./00-업데이트노트-2026.6.11.md)를 참고하십시오.
+
 ## 프로젝트 개요
 
-**OpenClaw**는 메시징 플랫폼과 AI 코딩 에이전트를 연결하는 **셀프 호스팅 게이트웨이 (self-hosted gateway)** 입니다. WhatsApp, Telegram, Discord, Slack, Signal, iMessage, Microsoft Teams 등 22개 이상의 메시징 채널을 단일 제어 플레인으로 통합하고, 멀티 에이전트 라우팅, 음성 통화, MCP/ACP 프로토콜, 미디어 생성/이해, 벡터 메모리를 제공합니다.
+**OpenClaw**는 메시징 플랫폼과 AI 코딩 에이전트를 연결하는 **셀프 호스팅 개인 AI 어시스턴트(self-hosted Personal AI Assistant) 게이트웨이** 입니다. WhatsApp, Telegram, Discord, Slack, Signal, iMessage, Microsoft Teams 등 25개 이상의 메시징 채널을 단일 제어 플레인으로 통합하고, 멀티 에이전트 라우팅, 음성 통화, MCP/ACP 프로토콜, 미디어 생성/이해, 벡터 메모리를 제공합니다.
 
 ## 문서 목록
 
 | 파일 | 내용 |
 |------|------|
+| [00-업데이트노트-2026.6.11.md](./00-업데이트노트-2026.6.11.md) | **2026.4.16 → 2026.6.11 변경 이력** (서브시스템별 델타 요약) |
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | 종합 아키텍처 개요 - 시스템 구조, 데이터 플로우, 기술 레이어 |
 | [01-게이트웨이-아키텍처.md](./01-게이트웨이-아키텍처.md) | 게이트웨이 서버, WebSocket 연결, RPC 프로토콜, 클라이언트 관리 |
 | [02-채널-메시징-시스템.md](./02-채널-메시징-시스템.md) | 채널 플러그인 인터페이스, 메시지 라우팅, 청킹, 22개 이상 채널 |
@@ -50,7 +53,7 @@ flowchart TB
     end
 
     subgraph Extensions["확장"]
-        Plugins["플러그인 (113 엔트리)"]
+        Plugins["플러그인/확장 (145 엔트리)"]
         Skills["스킬 (53)"]
         Memory["메모리"]
         VectorDB["벡터 DB"]
@@ -126,8 +129,8 @@ sequenceDiagram
 | 영역 | 기술 |
 |------|------|
 | 언어 | TypeScript (ESM, strict) |
-| 런타임 | Node.js 22.14+ (Node 24 권장) |
-| 패키지 관리 | pnpm 10 (모노레포 워크스페이스) |
+| 런타임 | Node.js 22.19+ (Node 24 권장) |
+| 패키지 관리 | pnpm 11.2 (모노레포 워크스페이스) |
 | 빌드 | TypeScript, tsdown (Rolldown) |
 | 테스트 | Vitest |
 | 린트/포맷 | Oxlint, Oxfmt |
@@ -143,35 +146,41 @@ sequenceDiagram
 
 ## 프로젝트 통계
 
+> 아래 수치는 `git ls-files '*.ts'`(‌.d.ts 제외) 기준이며, 직전 분석(2026.4.16)의 수치와 집계 방식이 다를 수 있습니다.
+
 | 항목 | 값 |
 |------|------|
-| TypeScript 파일 | 3,292개 |
-| 총 코드 라인 수 | 456,691 LOC |
+| 소스 TypeScript 파일 (비테스트) | 약 5,283개 |
+| 소스 코드 라인 수 (비테스트) | 약 1,192,000 LOC |
+| 테스트 파일 (`*.test.ts` 등) | 약 3,829개 |
+| 전체 추적 TypeScript 파일 | 약 16,821개 |
+| 전체 추적 TypeScript 라인 수 | 약 4,797,000 LOC |
 | 번들 스킬 | 53개 |
-| 확장 (extensions 엔트리) | 113개 |
-| 워크스페이스 패키지 | 3개 (memory-host-sdk, plugin-package-contract, plugin-sdk) |
-| 메시징 채널 | 22개 이상 |
+| 확장 (extensions 엔트리) | 145개 (채널 매니페스트 약 25개) |
+| 워크스페이스 패키지 | 21개 (`packages/*`) |
+| 메시징 채널 | 25개 이상 |
 | 라이선스 | MIT |
-| 버전 | 2026.4.16 |
+| 버전 | 2026.6.11 (최신 태그 v2026.7.1-beta.1) |
 
 ## 핵심 디렉토리
 
 ```
 openclaw/
-├── src/                          # 메인 애플리케이션 소스
+├── src/                          # 메인 애플리케이션 소스 (68개 하위 모듈)
 │   ├── acp/                      # ACP (Agent Client Protocol) 지원
 │   ├── agents/                   # AI 에이전트 (Pi 런타임, 멀티 에이전트 라우팅)
 │   ├── auto-reply/               # 자동 응답 파이프라인
 │   ├── bindings/                 # 채널-세션 바인딩
 │   ├── bootstrap/                # 런타임 부트스트랩
-│   ├── canvas-host/              # Canvas (비주얼 워크스페이스) 호스트
 │   ├── channels/                 # 채널 인터페이스 코어
 │   ├── chat/                     # 채팅 오케스트레이션
 │   ├── cli/                      # CLI 진입점
 │   ├── commands/                 # CLI 커맨드 구현
+│   ├── commitments/              # (신규) 약속/커밋먼트 트래킹
 │   ├── compat/                   # 호환성 레이어
 │   ├── config/                   # JSON5 설정 + Zod 검증
 │   ├── context-engine/           # 컨텍스트 엔진
+│   ├── crestodian/               # (신규) 내부 서브시스템
 │   ├── cron/                     # Cron / 예약 작업
 │   ├── daemon/                   # 데몬 프로세스
 │   ├── docs/                     # 내부 문서 런타임
@@ -181,51 +190,84 @@ openclaw/
 │   ├── i18n/                     # 다국어
 │   ├── image-generation/         # 이미지 생성
 │   ├── infra/                    # 인프라 유틸리티
+│   ├── interactive/             # (신규) 대화형 상호작용
+│   ├── link-understanding/       # (신규) 링크/URL 이해
+│   ├── llm/                      # (신규) LLM 통합 레이어
 │   ├── logging/                  # 로깅
-│   ├── markdown/                 # 마크다운 처리
 │   ├── mcp/                      # MCP (Model Context Protocol) 지원
 │   ├── media/                    # 미디어 파이프라인
 │   ├── media-generation/         # 미디어 생성 오케스트레이션
 │   ├── media-understanding/      # 미디어 이해
+│   ├── memory/                   # (신규) 메모리 코어
 │   ├── memory-host-sdk/          # 메모리 호스트 SDK 바인딩
+│   ├── model-catalog/            # (신규) 모델 카탈로그
 │   ├── music-generation/         # 음악 생성
 │   ├── node-host/                # 네이티브 노드 호스트
 │   ├── pairing/                  # 페어링 프로토콜
-│   ├── plugins/                  # 플러그인 런타임
 │   ├── plugin-sdk/               # 플러그인 SDK 통합
+│   ├── plugin-state/             # (신규) 플러그인 상태 관리
+│   ├── plugins/                  # 플러그인 런타임
 │   ├── process/                  # 프로세스 관리
+│   ├── provider-runtime/         # (신규) 프로바이더 런타임
 │   ├── proxy-capture/            # 프록시 캡처
 │   ├── realtime-transcription/   # 실시간 전사
-│   ├── realtime-voice/           # 실시간 음성 통화
 │   ├── routing/                  # 세션 라우팅
 │   ├── scripts/                  # 런타임 스크립트
 │   ├── secrets/                  # 시크릿 관리
 │   ├── security/                 # 보안 레이어
 │   ├── sessions/                 # 세션 스토어
 │   ├── shared/                   # 공유 유틸
+│   ├── skills/                   # (신규) 스킬 런타임 코어
+│   ├── state/                    # (신규) 상태 스토어
 │   ├── status/                   # 상태 표시
+│   ├── talk/                     # (구 realtime-voice) 실시간 음성 통화
 │   ├── tasks/                    # 태스크 러너
-│   ├── terminal/                 # 터미널 UI
+│   ├── test-helpers/             # (신규) 테스트 헬퍼
+│   ├── test-utils/               # (신규) 테스트 유틸
+│   ├── tools/                    # (신규) 도구 정의/실행
+│   ├── trajectory/               # (신규) 에이전트 트래젝터리 기록
+│   ├── transcripts/              # (신규) 대화 트랜스크립트
 │   ├── tts/                      # 음성 합성
 │   ├── tui/                      # TUI (텍스트 UI)
 │   ├── types/                    # 공유 타입
 │   ├── utils/                    # 유틸리티
 │   ├── video-generation/         # 비디오 생성
-│   ├── web/                      # 웹 엔드포인트
 │   ├── web-fetch/                # 웹 페치 도구
 │   ├── web-search/               # 웹 검색 도구
 │   └── wizard/                   # 온보딩 마법사
+│   # 이동/제거: canvas-host → extensions/canvas, markdown → packages/markdown-core,
+│   #            terminal → packages/terminal-core, web 제거
 │
 ├── apps/
 │   ├── macos/                    # macOS 메뉴바 앱 (Swift)
+│   ├── macos-mlx-tts/            # (신규) macOS MLX 기반 로컬 TTS
 │   ├── ios/                      # iOS 노드 앱 (Swift)
 │   ├── android/                  # Android 노드 앱 (Kotlin)
+│   ├── swabble/                  # Swabble 서브프로젝트 (apps로 이동)
 │   └── shared/                   # 공유 네이티브 라이브러리
 │
-├── packages/                     # pnpm 워크스페이스 패키지
+├── packages/                     # pnpm 워크스페이스 패키지 (21개, 코어 모듈화)
+│   ├── acp-core/                 # ACP 코어
+│   ├── agent-core/               # 에이전트 코어
+│   ├── gateway-client/           # 게이트웨이 클라이언트
+│   ├── gateway-protocol/         # 게이트웨이 RPC 프로토콜
+│   ├── llm-core/                 # LLM 코어
+│   ├── llm-runtime/              # LLM 런타임
+│   ├── markdown-core/            # 마크다운 코어 (구 src/markdown)
+│   ├── media-core/               # 미디어 코어
+│   ├── media-generation-core/    # 미디어 생성 코어
+│   ├── media-understanding-common/ # 미디어 이해 공용
 │   ├── memory-host-sdk/          # 메모리 호스트 SDK
+│   ├── model-catalog-core/       # 모델 카탈로그 코어
+│   ├── net-policy/               # 네트워크 정책
+│   ├── normalization-core/       # 정규화 코어
 │   ├── plugin-package-contract/  # 플러그인 패키지 계약
-│   └── plugin-sdk/               # 플러그인 개발 SDK
+│   ├── plugin-sdk/               # 플러그인 개발 SDK
+│   ├── sdk/                      # 공개 SDK
+│   ├── speech-core/              # 음성 런타임 코어
+│   ├── terminal-core/            # 터미널 코어 (구 src/terminal)
+│   ├── tool-call-repair/         # 도구 호출 복구
+│   └── web-content-core/         # 웹 콘텐츠 코어
 │
 ├── extensions/                   # 플러그인/확장 (113 엔트리)
 │   ├── telegram, discord, slack, whatsapp, signal, msteams, imessage,

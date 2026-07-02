@@ -1,8 +1,10 @@
 # 05. CLI 명령 시스템 (CLI Command System)
 
+> 본 문서는 OpenClaw 2026.6.11 기준으로 갱신되었습니다.
+
 ## 개요
 
-OpenClaw CLI는 **Commander.js** 기반의 대규모 명령줄 인터페이스로, **50개 이상의 최상위 명령어**(카테고리·서브커맨드 포함 시 100개 이상)를 제공한다. 지연 로딩(lazy loading) 방식의 플러그인 아키텍처를 채택하여 초기 기동 시간을 최소화하며, **osc-progress**와 **@clack/prompts**를 조합한 진행률 UI로 사용자 경험을 극대화한다. 의존성 주입(Dependency Injection) 패턴을 통해 테스트 가능성과 모듈 교체 유연성을 확보하고 있다.
+OpenClaw CLI는 **Commander.js** 기반의 대규모 명령줄 인터페이스로, **50개 이상의 최상위 명령어**(카테고리·서브커맨드 포함 시 100개 이상)를 제공한다. 지연 로딩(lazy loading) 방식의 플러그인 아키텍처를 채택하여 초기 기동 시간을 최소화하며, **OSC progress**(터미널 OSC 시퀀스 기반, `packages/terminal-core`에 내장)와 **@clack/prompts**를 조합한 진행률 UI로 사용자 경험을 극대화한다. 의존성 주입(Dependency Injection) 패턴을 통해 테스트 가능성과 모듈 교체 유연성을 확보하고 있다.
 
 ---
 
@@ -12,7 +14,7 @@ OpenClaw CLI는 **Commander.js** 기반의 대규모 명령줄 인터페이스�
 
 ```mermaid
 flowchart LR
-    A["openclaw.mjs<br/>(진입점, Node 22.12+)"] --> B["dist/entry.(m)js<br/>(빌드 출력)"]
+    A["openclaw.mjs<br/>(진입점, Node 22.19+)"] --> B["dist/entry.(m)js<br/>(빌드 출력)"]
     B --> C["Commander.js<br/>Router"]
     C --> D{"명령 분기"}
     D --> E["Command<br/>Handlers"]
@@ -42,9 +44,9 @@ graph TD
     end
 
     subgraph "UI 계층"
-        Progress["src/cli/progress.ts<br/>osc-progress + @clack/prompts"]
-        Table["src/terminal/table.ts<br/>ANSI-safe 테이블"]
-        Palette["src/terminal/palette.ts<br/>CLI 컬러 팔레트"]
+        Progress["src/cli/progress.ts<br/>OSC progress + @clack/prompts"]
+        Table["packages/terminal-core/src/table.ts<br/>ANSI-safe 테이블"]
+        Palette["packages/terminal-core/src/palette.ts<br/>CLI 컬러 팔레트"]
     end
 
     subgraph "실행 계층"
@@ -78,13 +80,13 @@ CLI 실행은 두 단계로 나뉜다.
 
 | 단계 | 파일 | 역할 |
 |------|------|------|
-| 1단계 | `openclaw.mjs` | Node.js shebang 진입점. Node 22.12+ 버전 체크, 컴파일 캐시 활성화, `dist/entry.js` 또는 `dist/entry.mjs` 동적 import |
+| 1단계 | `openclaw.mjs` | Node.js shebang 진입점. Node 22.19+ 버전 체크(`MIN_NODE_MAJOR=22`, `MIN_NODE_MINOR=19`), 컴파일 캐시 활성화, `dist/entry.js` 또는 `dist/entry.mjs` 동적 import |
 | 2단계 | `dist/entry.(m)js` | 빌드된 CLI 본체 (`src/entry.ts` 번들). Commander.js 프로그램을 초기화하고 명령어 트리를 구성 |
 
 ```javascript
 // openclaw.mjs (요점)
 #!/usr/bin/env node
-// 1) Node.js 22.12+ 검증
+// 1) Node.js 22.19+ 검증
 // 2) module.enableCompileCache() 시도
 // 3) `--help` 단일 호출 시 dist/cli-startup-metadata.json의 precomputed rootHelp 사용
 // 4) dist/entry.js → dist/entry.mjs 순서로 tryImport
@@ -224,10 +226,12 @@ src/commands/
 | 명령 | 설명 |
 |------|------|
 | `openclaw setup` | 로컬 config와 에이전트 워크스페이스를 초기화 |
+| `openclaw crestodian` | 대화형 셋업·복구 어시스턴트 열기 |
 | `openclaw onboard` | 게이트웨이·워크스페이스·스킬 대화형 온보딩 위자드 |
 | `openclaw configure` | 자격 증명·채널·게이트웨이·에이전트 기본값 대화형 구성 |
 | `openclaw config` | 비대화형 설정 헬퍼 (`get`/`set`/`unset`/`file`/`validate`/`schema`) |
 | `openclaw backup` | OpenClaw 상태의 백업 아카이브 생성/검증 |
+| `openclaw migrate` | 다른 에이전트 시스템에서 상태 가져오기 |
 | `openclaw doctor` | 게이트웨이·채널 헬스체크 및 자동 수정 |
 | `openclaw dashboard` | 현재 토큰으로 Control UI 열기 |
 | `openclaw reset` | 로컬 config/state 리셋 (CLI 유지) |
@@ -239,6 +243,8 @@ src/commands/
 | `openclaw status` | 채널 헬스와 최근 세션 수신자 표시 |
 | `openclaw health` | 실행 중인 게이트웨이에서 헬스 조회 |
 | `openclaw sessions` | 저장된 대화 세션 목록 |
+| `openclaw transcripts` | 저장된 트랜스크립트(대화 기록) 조회 |
+| `openclaw commitments` | 추론된 후속 커밋먼트(follow-up) 목록·관리 |
 | `openclaw tasks` | 내구성 백그라운드 태스크 상태 |
 
 #### Sub-CLI (`subcli-descriptors.ts`)
@@ -246,6 +252,7 @@ src/commands/
 | 명령 | 설명 |
 |------|------|
 | `openclaw acp` | Agent Control Protocol 도구 |
+| `openclaw attach` | 스코프된 MCP 도구로 Claude Code를 게이트웨이 세션에 연결 |
 | `openclaw gateway` | WebSocket 게이트웨이 실행·조회·질의 |
 | `openclaw daemon` | 게이트웨이 서비스 (레거시 별칭) |
 | `openclaw logs` | RPC를 통한 게이트웨이 파일 로그 tail |
@@ -259,6 +266,7 @@ src/commands/
 | `openclaw node` | 헤드리스 노드 호스트 서비스 |
 | `openclaw sandbox` | 에이전트 샌드박스 컨테이너 |
 | `openclaw tui` | 게이트웨이 연결 터미널 UI |
+| `openclaw chat` / `openclaw terminal` | 로컬 터미널 UI 열기 (`tui --local` 별칭) |
 | `openclaw cron` | 게이트웨이 스케줄러 크론 작업 |
 | `openclaw dns` | Tailscale + CoreDNS 광역 디스커버리 헬퍼 |
 | `openclaw docs` | 라이브 OpenClaw 문서 검색 |
@@ -366,7 +374,7 @@ function buildGatewayCommands(parent: Command, deps: CliDeps): void {
 ```mermaid
 flowchart LR
     subgraph "Progress UI 스택"
-        A["osc-progress<br/>프로그레스 바 렌더링"] --> C["터미널 출력"]
+        A["OSC progress<br/>프로그레스 바 렌더링"] --> C["터미널 출력"]
         B["@clack/prompts<br/>스피너 · 프롬프트"] --> C
     end
 
@@ -417,12 +425,12 @@ await withProgress("채널 동기화 중", async (update) => {
 
 ## 상태 출력 (Status Output)
 
-### ANSI-safe 테이블 — src/terminal/table.ts
+### ANSI-safe 테이블 — packages/terminal-core/src/table.ts
 
 터미널 너비와 ANSI 이스케이프 시퀀스를 고려한 테이블 렌더링을 제공한다.
 
 ```typescript
-// src/terminal/table.ts (패턴 예시)
+// packages/terminal-core/src/table.ts (패턴 예시)
 export interface TableColumn {
   header: string;
   width?: number;
@@ -440,12 +448,12 @@ export function renderTable(
 }
 ```
 
-### CLI 컬러 팔레트 — src/terminal/palette.ts
+### CLI 컬러 팔레트 — packages/terminal-core/src/palette.ts
 
 일관된 컬러 스킴을 위한 팔레트 정의를 제공한다.
 
 ```typescript
-// src/terminal/palette.ts (패턴 예시)
+// packages/terminal-core/src/palette.ts (패턴 예시)
 import chalk from "chalk";
 
 export const palette = {
@@ -568,7 +576,7 @@ sequenceDiagram
 
 ```
 openclaw/
-├── openclaw.mjs                  # CLI 진입점 (shebang, Node 22.12+ 체크)
+├── openclaw.mjs                  # CLI 진입점 (shebang, Node 22.19+ 체크)
 └── src/
     ├── entry.ts                  # 번들 엔트리 (dist/entry.(m)js)
     ├── cli/                      # CLI 인프라 (100+ 파일)
@@ -597,8 +605,12 @@ openclaw/
     │   └── setup.*.ts            # gateway-config / plugin-config / secret-input
     │
     ├── tui/                      # 터미널 UI (openclaw tui)
-    ├── terminal/                 # ANSI-safe 테이블·팔레트
     └── config/                   # 설정 스키마·I/O
+
+packages/
+└── terminal-core/src/           # ANSI-safe 테이블·팔레트·OSC progress·theme
+    ├── table.ts / palette.ts / theme.ts
+    └── osc-progress.ts / progress-line.ts
 ```
 
 ---

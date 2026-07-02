@@ -6,14 +6,16 @@
 
 ## 1. 프로젝트 개요
 
-**OpenClaw**는 메시징 플랫폼과 AI 코딩 에이전트를 연결하는 **셀프 호스팅 게이트웨이 (self-hosted gateway)** 입니다. WhatsApp, Telegram, Discord, Slack, Signal, iMessage, Microsoft Teams 등 22개 이상의 메시징 플랫폼을 단일 제어 플레인으로 통합하고, 멀티 에이전트 라우팅, 실시간 음성 통화, MCP/ACP 프로토콜, 미디어 생성/이해, 벡터 메모리를 제공합니다.
+> 본 문서는 OpenClaw **2026.6.11** 기준으로 갱신되었습니다 (2026-07-02, HEAD `574604e`). 직전 분석은 2026.4.16 기준. 서브시스템별 변경 이력은 [00-업데이트노트-2026.6.11.md](./00-업데이트노트-2026.6.11.md) 참고.
+
+**OpenClaw**는 메시징 플랫폼과 AI 코딩 에이전트를 연결하는 **셀프 호스팅 개인 AI 어시스턴트(self-hosted Personal AI Assistant) 게이트웨이** 입니다. WhatsApp, Telegram, Discord, Slack, Signal, iMessage, Microsoft Teams 등 25개 이상의 메시징 플랫폼을 단일 제어 플레인으로 통합하고, 멀티 에이전트 라우팅, 실시간 음성 통화, MCP/ACP 프로토콜, 미디어 생성/이해, 벡터 메모리를 제공합니다.
 
 ```
-버전: 2026.4.16 (날짜 기반 버전)
+버전: 2026.6.11 (날짜 기반 버전, 최신 태그 v2026.7.1-beta.1)
 언어: TypeScript (ESM, strict)
-런타임: Node.js 22.14+ (Node 24 권장)
-패키지 관리: pnpm 10 (모노레포 워크스페이스)
-에이전트 프로토콜: MCP, ACP
+런타임: Node.js 22.19+ (Node 24 권장)
+패키지 관리: pnpm 11.2 (모노레포 워크스페이스, packages 21개)
+에이전트 프로토콜: MCP, ACP (게이트웨이 PROTOCOL_VERSION 4)
 라이선스: MIT
 ```
 
@@ -46,7 +48,7 @@ flowchart TB
         NodeSubs["Node Subscriptions"]
     end
 
-    subgraph Channels["메시징 채널 (22+)"]
+    subgraph Channels["메시징 채널 (25+)"]
         MainChannels["주요 채널\nWhatsApp / Telegram / Discord\nSlack / Signal / Teams\niMessage / BlueBubbles / LINE\nGoogle Chat / Feishu / Matrix"]
         ExtChannels["확장 채널\nMattermost / Nextcloud Talk\nNostr / IRC / Tlon / Twitch\nQQ / Synology Chat\nZalo / Zalo User"]
         VoiceCh["음성 채널\nVoice Call / Talk Voice\n(실시간 음성)"]
@@ -260,7 +262,7 @@ flowchart TB
 
     subgraph Business["비즈니스 로직 레이어"]
         AgentRuntime["Agent Runtime\n(Pi Agent Core + MCP/ACP)"]
-        ChannelPlugins["Channel Plugins\n(22+ 메시징 채널)"]
+        ChannelPlugins["Channel Plugins\n(25+ 메시징 채널)"]
         ToolSystem["Tool System\n(53 번들 스킬)"]
         PluginSDK["Plugin SDK\n(훅, 라이프사이클)"]
         MemoryLogic["Memory Logic\n(벡터 검색, 요약)"]
@@ -301,7 +303,7 @@ flowchart TB
 
 ## 6. 모노레포 워크스페이스 구조
 
-OpenClaw는 pnpm 10 워크스페이스 기반 모노레포로 구성됩니다.
+OpenClaw는 pnpm 11.2 워크스페이스 기반 모노레포로 구성됩니다. 2026.6.11 기준으로 다수의 코어 로직이 `src/`에서 `packages/*`(21개)로 모듈화되었습니다.
 
 ```
 openclaw/                          # 루트 (pnpm-workspace.yaml)
@@ -317,8 +319,13 @@ openclaw/                          # 루트 (pnpm-workspace.yaml)
 │   ├── agents/                    # AI 에이전트 런타임 (멀티 에이전트 라우팅)
 │   ├── mcp/                       # MCP (Model Context Protocol) 지원
 │   ├── acp/                       # ACP (Agent Client Protocol) 지원
-│   ├── canvas-host/               # Canvas (비주얼 워크스페이스) 호스트
 │   ├── channels/                  # 채널 인터페이스
+│   ├── llm/                       # (신규) LLM 통합 레이어
+│   ├── model-catalog/             # (신규) 모델 카탈로그
+│   ├── provider-runtime/          # (신규) 프로바이더 런타임
+│   ├── tools/                     # (신규) 도구 정의/실행
+│   ├── trajectory/                # (신규) 에이전트 트래젝터리
+│   ├── transcripts/               # (신규) 대화 트랜스크립트
 │   ├── chat/                      # 채팅 오케스트레이션
 │   ├── context-engine/            # 컨텍스트 엔진
 │   ├── plugins/                   # 플러그인 런타임
@@ -337,7 +344,7 @@ openclaw/                          # 루트 (pnpm-workspace.yaml)
 │   ├── video-generation/          # 비디오 생성
 │   ├── music-generation/          # 음악 생성
 │   ├── tts/                       # 음성 합성
-│   ├── realtime-voice/            # 실시간 음성 통화
+│   ├── talk/                      # 실시간 음성 통화 (구 realtime-voice)
 │   ├── realtime-transcription/    # 실시간 전사
 │   ├── web-fetch/                 # 웹 페치
 │   ├── web-search/                # 웹 검색
@@ -350,21 +357,28 @@ openclaw/                          # 루트 (pnpm-workspace.yaml)
 │   ├── infra/                     # 인프라 유틸리티
 │   ├── logging/                   # 로깅
 │   ├── secrets/                   # 시크릿 관리
-│   ├── terminal/                  # 터미널 UI
 │   ├── tui/                       # TUI
+│   ├── skills/                    # (신규) 스킬 런타임 코어
+│   ├── state/                     # (신규) 상태 스토어
+│   ├── plugin-state/              # (신규) 플러그인 상태
 │   └── wizard/                    # 온보딩 마법사
+│   # 이동/제거: terminal → packages/terminal-core, canvas-host → extensions/canvas,
+│   #            markdown → packages/markdown-core, web 제거
 │
 ├── ui/                            # Control UI (Lit + Vite)
 │
-├── packages/                      # pnpm 워크스페이스 패키지 (3개)
-│   ├── memory-host-sdk/           # 메모리 호스트 SDK
-│   ├── plugin-package-contract/   # 플러그인 패키지 계약
-│   └── plugin-sdk/                # 플러그인 개발 SDK
+├── packages/                      # pnpm 워크스페이스 패키지 (21개, 코어 모듈화)
+│   ├── acp-core/ agent-core/ gateway-client/ gateway-protocol/
+│   ├── llm-core/ llm-runtime/ model-catalog-core/ tool-call-repair/
+│   ├── markdown-core/ terminal-core/ web-content-core/ normalization-core/
+│   ├── media-core/ media-generation-core/ media-understanding-common/
+│   ├── memory-host-sdk/ net-policy/ speech-core/
+│   └── plugin-sdk/ plugin-package-contract/ sdk/
 │
-├── extensions/                    # 플러그인/확장 (113 엔트리)
-│   # 메시징 채널 (22+)
-│   ├── telegram, discord, slack, whatsapp, signal,
-│   ├── msteams, imessage, bluebubbles, feishu, googlechat,
+├── extensions/                    # 플러그인/확장 (145 엔트리)
+│   # 메시징 채널 (매니페스트 약 25개)
+│   ├── telegram, discord, slack, whatsapp, signal, sms,
+│   ├── msteams, imessage, feishu, googlechat,
 │   ├── irc, line, matrix, mattermost, nextcloud-talk,
 │   ├── nostr, qqbot, synology-chat, tlon, twitch,
 │   ├── zalo, zalouser,
@@ -372,12 +386,12 @@ openclaw/                          # 루트 (pnpm-workspace.yaml)
 │   ├── anthropic, openai, google, openrouter, ollama,
 │   ├── mistral, groq, perplexity, xai, deepseek, ...
 │   # 메모리/검색
-│   ├── memory-core, memory-lancedb, memory-wiki,
+│   ├── memory-core, memory-lancedb, memory-wiki, active-memory,
 │   ├── brave, exa, tavily, duckduckgo, searxng,
 │   # 음성/미디어
 │   ├── voice-call, talk-voice, elevenlabs, deepgram,
 │   ├── fal, runway, comfy, ...
-│   └── ...                        # (총 113 엔트리)
+│   └── ...                        # (총 145 엔트리)
 │
 ├── skills/                        # 번들 스킬 (53개)
 │
@@ -468,7 +482,7 @@ sequenceDiagram
 
 ## 8. 채널 아키텍처 요약
 
-### 8.1 메시징 채널 (22개 이상)
+### 8.1 메시징 채널 (25개 이상)
 
 | 채널 | 라이브러리 | 연결 방식 |
 |------|-----------|-----------|
@@ -799,10 +813,15 @@ CLI 커맨드:
 ├─ infra (logging, env, ports 등)
 └─ WebSocket (ws 라이브러리)
 
-워크스페이스 패키지:
+워크스페이스 패키지 (21개):
 ├─ ui/ → Lit + Vite (Control Panel)
-├─ packages/plugin-sdk → 플러그인 개발 SDK
-├─ packages/plugin-package-contract → 플러그인 패키지 계약
+├─ packages/gateway-protocol, gateway-client → 게이트웨이 RPC/클라이언트
+├─ packages/agent-core, acp-core → 에이전트/ACP 코어
+├─ packages/llm-core, llm-runtime, model-catalog-core, tool-call-repair → LLM 스택
+├─ packages/media-core, media-generation-core, media-understanding-common, speech-core → 미디어/음성
+├─ packages/markdown-core, terminal-core, web-content-core, normalization-core → 콘텐츠/터미널
+├─ packages/net-policy → 네트워크 정책
+├─ packages/plugin-sdk, plugin-package-contract, sdk → 플러그인/공개 SDK
 └─ packages/memory-host-sdk → 메모리 호스트 SDK
 ```
 
@@ -813,11 +832,11 @@ CLI 커맨드:
 OpenClaw는 다음과 같은 핵심 강점을 가진 **셀프 호스팅 AI 게이트웨이**입니다:
 
 1. **통합 제어 플레인** (게이트웨이 WebSocket) - 모든 채널/클라이언트를 위한 단일 허브
-2. **멀티채널 통신** (22+ 메시징 채널) - WhatsApp, Telegram, Discord, Slack, Signal, iMessage, Teams, Matrix 등
+2. **멀티채널 통신** (25+ 메시징 채널) - WhatsApp, Telegram, Discord, Slack, Signal, iMessage, Teams, Matrix 등
 3. **AI 에이전트 런타임** (Pi) - 53개 스킬, 스트리밍, 멀티 에이전트 라우팅, MCP/ACP 프로토콜
 4. **실시간 음성/미디어** - Voice Call, 실시간 전사, 이미지/비디오/음악 생성
 5. **벡터 메모리 시스템** (SQLite-vec + FTS5) - 하이브리드 검색 기반 컨텍스트
-6. **확장 가능한 플러그인 아키텍처** - 113개 extensions 엔트리, 플러그인 SDK + 훅 시스템
+6. **확장 가능한 플러그인 아키텍처** - 145개 extensions 엔트리, 플러그인 SDK + 훅 시스템
 7. **네이티브 앱 통합** (macOS/iOS/Android) - 브릿지 프로토콜 기반
 8. **프라이버시 우선 설계** - 셀프 호스팅, 로컬 우선, 클라우드 스토리지 없음
 9. **개발자 경험** - pnpm 모노레포, Vitest, Oxlint, 직관적 CLI
